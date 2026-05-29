@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>🎈 모양 맞추기 퍼즐 🎈</title>
+    <style>
+        body {
+            font-family: 'Comic Sans MS', 'Malgun Gothic', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #fff9e6; 
+            margin: 0;
+            padding: 15px;
+            padding-bottom: 180px; 
+            box-sizing: border-box;
+            color: #576574;
+        }
+        
+        h2 { color: #ff9ff3; margin-bottom: 15px; font-size: 24px; text-align: center; text-shadow: 2px 2px 0px #fff; }
+        
+        .status-bar, .info-panel {
+            width: 100%;
+            max-width: 600px;
+            background: #48dbfb;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 20px;
+            box-sizing: border-box;
+            margin-bottom: 15px;
+            box-shadow: 0 5px 0 #0abde3;
+        }
+        .status-bar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+        .info-panel { background: white; color: #333; text-align: center; border: 3px solid #ff9ff3; box-shadow: 0 5px 0 #fca5f1; }
+        
+        .score-display { font-size: 20px; font-weight: bold; color: #fff; text-shadow: 1px 1px 2px rgba(0,0,0,0.2); }
+        .difficulty-select select { padding: 8px 15px; font-size: 15px; border-radius: 15px; border: 2px solid #fff; font-weight: bold; background: #fff; color: #0abde3; outline: none; }
+        
+        .problem-text { font-size: 23px; font-weight: bold; color: #ee5253; margin: 10px 0 5px 0; word-break: keep-all; }
+        
+        .game-area { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; width: 100%; max-width: 700px; }
+        .canvas-container { display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 300px; background: white; padding: 15px; border-radius: 25px; border: 4px solid #c8d6e5; box-sizing: border-box; box-shadow: 0 6px 0 #aee2ff; }
+        h3 { font-size: 18px; margin-top: 0; margin-bottom: 10px; color: #5f27cd; }
+        canvas { background-color: #f8fbff; border-radius: 15px; cursor: crosshair; width: 100%; max-width: 280px; height: auto; touch-action: none; }
+        
+        .controls {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px 20px;
+            padding-bottom: calc(15px + env(safe-area-inset-bottom)); 
+            box-shadow: 0 -5px 15px rgba(0,0,0,0.05);
+            border-top-left-radius: 30px; border-top-right-radius: 30px;
+            display: flex; flex-wrap: wrap; justify-content: center; gap: 15px;
+            z-index: 1000;
+        }
+        
+        button {
+            flex: 1 1 calc(50% - 15px); min-width: 130px; max-width: 200px;
+            padding: 15px 10px; font-size: 15px; font-weight: bold; color: white;
+            border: none; border-radius: 25px; cursor: pointer; transition: transform 0.1s;
+        }
+        button:active { transform: translateY(4px); box-shadow: none !important; } 
+        
+        .btn-reset { background-color: #ff9f43; box-shadow: 0 5px 0 #e17055; }
+        .btn-new { background-color: #f368e0; box-shadow: 0 5px 0 #e056ce; }
+        .btn-check { background-color: #1dd1a1; box-shadow: 0 5px 0 #10ac84; }
+        .btn-next { background-color: #0abde3; box-shadow: 0 5px 0 #0984e3; display: none; }
+
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.5); display: none;
+            justify-content: center; align-items: center; z-index: 2000; backdrop-filter: blur(3px);
+        }
+        .modal-box {
+            background: white; width: 85%; max-width: 320px; padding: 25px 20px;
+            border-radius: 30px; border: 5px solid #ff9ff3;
+            box-shadow: 0 10px 0 #fca5f1, 0 20px 25px rgba(0,0,0,0.2);
+            text-align: center; animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes popIn { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        .modal-title { font-size: 24px; font-weight: bold; color: #5f27cd; margin-top: 0; margin-bottom: 10px; }
+        .modal-message { font-size: 16px; color: #576574; line-height: 1.5; margin-bottom: 25px; word-break: keep-all; }
+        .modal-buttons { display: flex; gap: 10px; justify-content: center; }
+        .modal-buttons button { box-shadow: 0 4px 0 rgba(0,0,0,0.1); padding: 12px; }
+    </style>
+</head>
+<body>
+
+    <h2>🧩 요리조리 모양 맞추기 🧩</h2>
+
+    <div class="status-bar">
+        <div class="score-display">🌟 점수: <span id="scoreVal">0</span>점</div>
+        <div class="difficulty-select">
+            <select id="diffSelect">
+                <option value="1">🌱 쉬움 1단계</option>
+                <option value="2">🌿 쉬움 2단계</option>
+                <option value="3" selected>🍀 보통 3단계</option>
+                <option value="4">🔥 어려움 4단계</option>
+                <option value="5">🚀 최고 난이도</option>
+            </select>
+        </div>
+    </div>
+    
+    <div class="info-panel">
+        <div style="font-size: 16px; font-weight: bold;">마법의 주문대로 모양을 바꿔보세요! ✨</div>
+        <div class="problem-text" id="problemText">마법 준비 중...</div>
+    </div>
+
+    <div class="game-area">
+        <div class="canvas-container">
+            <h3>🔍 기준 모양</h3>
+            <canvas id="baseCanvas" width="280" height="280"></canvas>
+        </div>
+        <div class="canvas-container" style="border-color:#ff9ff3; box-shadow: 0 6px 0 #ff9ff3;">
+            <h3>✍️ 여기에 그려요</h3>
+            <canvas id="playerCanvas" width="280" height="280"></canvas>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button class="btn-reset" id="btnReset">🗑️ 지우기</button>
+        <button class="btn-new" id="btnNew">⏭️ 패스하기</button>
+        <button class="btn-check" id="btnCheck">✅ 다 그렸어요!</button>
+        <button class="btn-next" id="btnNext">🎉 다음 문제</button>
+    </div>
+
+    <div id="customModal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-title" id="modalTitle">알림</div>
+            <div class="modal-message" id="modalMessage">메시지 내용</div>
+            <div class="modal-buttons">
+                <button class="btn-reset" id="modalBtnCancel">아니요</button>
+                <button class="btn-check" id="modalBtnConfirm">네!</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function initGame() {
+            // ⭐️ 외곽 점 잘림 방지를 위한 여백(padding) 추가 ⭐️
+            const padding = 15;
+            const gridSize = 5; 
+            // 캔버스 크기(280)에서 양쪽 여백(15*2=30)을 뺀 250을 5칸으로 나눕니다.
+            const cellSize = 50; 
+            const vertexRadius = 7; 
+            
+            let targetShapeVertices = []; 
+            let playerVertices = [];      
+            let isPlayerPathClosed = false; 
+            let currentScore = 0;
+
+            const shapesByDifficulty = {
+                1: [
+                    [{x:1, y:1}, {x:4, y:1}, {x:1, y:4}], [{x:2, y:2}, {x:4, y:2}, {x:4, y:4}, {x:2, y:4}],
+                    [{x:1, y:2}, {x:4, y:2}, {x:2, y:4}], [{x:2, y:1}, {x:4, y:1}, {x:4, y:3}],
+                    [{x:1, y:1}, {x:5, y:1}, {x:3, y:4}], [{x:2, y:1}, {x:4, y:1}, {x:4, y:4}, {x:2, y:4}]
+                ],
+                2: [
+                    [{x:1, y:1}, {x:4, y:1}, {x:4, y:3}, {x:1, y:3}], [{x:2, y:1}, {x:4, y:3}, {x:2, y:5}, {x:0, y:3}],
+                    [{x:1, y:2}, {x:4, y:2}, {x:5, y:4}, {x:0, y:4}], [{x:2, y:1}, {x:3, y:1}, {x:4, y:4}, {x:1, y:4}],
+                    [{x:1, y:1}, {x:3, y:1}, {x:5, y:3}, {x:3, y:5}, {x:1, y:5}], [{x:2, y:0}, {x:4, y:2}, {x:4, y:4}, {x:0, y:4}]
+                ],
+                3: [
+                    [{x:1, y:1}, {x:4, y:1}, {x:4, y:2}, {x:2, y:2}, {x:2, y:4}, {x:1, y:4}], [{x:1, y:1}, {x:4, y:1}, {x:3, y:3}, {x:4, y:4}, {x:1, y:4}],
+                    [{x:2, y:1}, {x:4, y:1}, {x:4, y:2}, {x:3, y:2}, {x:3, y:4}, {x:2, y:4}], [{x:0, y:2}, {x:2, y:0}, {x:4, y:2}, {x:4, y:4}, {x:0, y:4}],
+                    [{x:1, y:1}, {x:5, y:1}, {x:3, y:3}, {x:5, y:5}, {x:1, y:5}], [{x:2, y:0}, {x:4, y:0}, {x:4, y:5}, {x:2, y:5}]
+                ],
+                4: [
+                    [{x:2, y:0}, {x:5, y:3}, {x:3, y:3}, {x:3, y:5}, {x:1, y:5}, {x:1, y:3}, {x:0, y:3}], [{x:1, y:0}, {x:4, y:0}, {x:4, y:2}, {x:2, y:2}, {x:2, y:3}, {x:5, y:3}, {x:5, y:5}, {x:1, y:5}],
+                    [{x:1, y:1}, {x:4, y:1}, {x:5, y:3}, {x:4, y:5}, {x:1, y:5}, {x:0, y:3}], [{x:2, y:1}, {x:4, y:1}, {x:5, y:2}, {x:3, y:3}, {x:4, y:4}, {x:2, y:4}, {x:1, y:3}],
+                    [{x:0, y:0}, {x:3, y:0}, {x:5, y:2}, {x:3, y:4}, {x:0, y:4}, {x:2, y:2}] 
+                ],
+                5: [
+                    [{x:1, y:0}, {x:4, y:0}, {x:5, y:2}, {x:3, y:3}, {x:4, y:5}, {x:1, y:5}, {x:2, y:3}, {x:0, y:2}], [{x:0, y:1}, {x:2, y:0}, {x:4, y:1}, {x:5, y:3}, {x:3, y:5}, {x:2, y:4}, {x:1, y:5}, {x:0, y:4}, {x:2, y:2}],
+                    [{x:2, y:0}, {x:3, y:0}, {x:5, y:2}, {x:5, y:3}, {x:3, y:5}, {x:2, y:5}, {x:0, y:3}, {x:0, y:2}], [{x:1, y:1}, {x:4, y:1}, {x:5, y:4}, {x:3, y:3}, {x:1, y:4}, {x:0, y:2}],
+                    [{x:2, y:0}, {x:4, y:0}, {x:5, y:3}, {x:3, y:5}, {x:0, y:4}, {x:0, y:2}, {x:2, y:2}], [{x:1, y:0}, {x:5, y:1}, {x:4, y:4}, {x:2, y:5}, {x:0, y:2}]
+                ]
+            };
+
+            const allTransforms = [
+                { name: "🪞 좌우로 뒤집어요 (거울모드) 🪞", transformFunc: (v) => ({x: gridSize - v.x, y: v.y}) },
+                { name: "🙃 위아래로 뒤집어요 🙃", transformFunc: (v) => ({x: v.x, y: gridSize - v.y}) },
+                { name: "↻ 시계 방향으로 굴려요 (오른쪽) ↻", transformFunc: (v) => ({x: gridSize - v.y, y: v.x}) },
+                { name: "🤸 완벽히 거꾸로 돌려요 (180도) 🤸", transformFunc: (v) => ({x: gridSize - v.x, y: gridSize - v.y}) },
+                { name: "↺ 반시계 방향으로 굴려요 (왼쪽) ↺", transformFunc: (v) => ({x: v.y, y: gridSize - v.x}) }
+            ];
+
+            const transformsByDifficulty = { 
+                1: [0, 1], 2: [0, 1, 3], 3: [0, 1, 2, 3, 4], 4: [0, 1, 2, 3, 4], 5: [2, 4] 
+            };
+
+            const baseCanvas = document.getElementById('baseCanvas'); const playerCanvas = document.getElementById('playerCanvas');
+            const baseCtx = baseCanvas.getContext('2d'); const playerCtx = playerCanvas.getContext('2d');
+
+            const btnReset = document.getElementById('btnReset'); const btnNew = document.getElementById('btnNew');
+            const btnCheck = document.getElementById('btnCheck'); const btnNext = document.getElementById('btnNext');
+            const problemText = document.getElementById('problemText'); const scoreVal = document.getElementById('scoreVal');
+            const diffSelect = document.getElementById('diffSelect');
+
+            let modalConfirmAction = null;
+
+            function showModal(title, message, isConfirm, confirmCallback) {
+                document.getElementById('modalTitle').innerHTML = title;
+                document.getElementById('modalMessage').innerHTML = message;
+                modalConfirmAction = confirmCallback;
+
+                const btnCancel = document.getElementById('modalBtnCancel');
+                const btnConfirm = document.getElementById('modalBtnConfirm');
+
+                if (isConfirm) {
+                    btnCancel.style.display = 'block'; 
+                    btnCancel.innerText = '아니요, 더 할래요';
+                    btnConfirm.innerText = '네, 넘길래요!';
+                } else {
+                    btnCancel.style.display = 'none'; 
+                    btnConfirm.innerText = '확인했어요!';
+                }
+                document.getElementById('customModal').style.display = 'flex';
+            }
+
+            document.getElementById('modalBtnCancel').addEventListener('click', () => {
+                document.getElementById('customModal').style.display = 'none';
+            });
+
+            document.getElementById('modalBtnConfirm').addEventListener('click', () => {
+                document.getElementById('customModal').style.display = 'none';
+                if (modalConfirmAction) modalConfirmAction();
+            });
+
+            function drawGrid(ctx) {
+                ctx.clearRect(0, 0, 280, 280);
+                ctx.beginPath(); ctx.strokeStyle = "#dfe6e9"; ctx.lineWidth = 2; ctx.setLineDash([5, 5]); 
+                
+                // ⭐️ 여백(padding)을 반영하여 모눈 그리기
+                for (let i = 0; i <= gridSize; i++) {
+                    let pos = padding + i * cellSize;
+                    ctx.moveTo(pos, padding); ctx.lineTo(pos, 280 - padding);
+                    ctx.moveTo(padding, pos); ctx.lineTo(280 - padding, pos);
+                }
+                ctx.stroke(); ctx.setLineDash([]); 
+
+                // ⭐️ 여백(padding)을 반영하여 꼭지점 그리기
+                ctx.fillStyle = "#81ecec";
+                for (let x = 0; x <= gridSize; x++) {
+                    for (let y = 0; y <= gridSize; y++) {
+                        ctx.beginPath(); 
+                        ctx.arc(padding + x * cellSize, padding + y * cellSize, 5, 0, Math.PI * 2); 
+                        ctx.fill();
+                    }
+                }
+            }
+
+            function drawShape(ctx, vertices, color, isClosed = true) {
+                if (!vertices || vertices.length === 0) return;
+                
+                ctx.beginPath(); 
+                // ⭐️ 여백(padding) 반영
+                ctx.moveTo(padding + vertices[0].x * cellSize, padding + vertices[0].y * cellSize);
+                for (let i = 1; i < vertices.length; i++) {
+                    ctx.lineTo(padding + vertices[i].x * cellSize, padding + vertices[i].y * cellSize);
+                }
+                
+                if (isClosed) { ctx.closePath(); ctx.fillStyle = color; ctx.fill(); }
+                
+                ctx.lineWidth = 4; ctx.lineJoin = "round"; ctx.strokeStyle = "#2d3436"; ctx.stroke();
+                
+                ctx.fillStyle = "#ff7675";
+                vertices.forEach(v => {
+                    ctx.beginPath(); 
+                    ctx.arc(padding + v.x * cellSize, padding + v.y * cellSize, vertexRadius, 0, Math.PI * 2); 
+                    ctx.fill();
+                    ctx.lineWidth = 2; ctx.strokeStyle = "white"; ctx.stroke();
+                });
+            }
+
+            function renderPlayerCanvas() {
+                drawGrid(playerCtx);
+                drawShape(playerCtx, playerVertices, isPlayerPathClosed ? "rgba(253, 121, 168, 0.7)" : "transparent", isPlayerPathClosed);
+            }
+
+            function resetPlayerDrawing() {
+                playerVertices = []; isPlayerPathClosed = false; renderPlayerCanvas();
+            }
+
+            function generateProblem() {
+                btnCheck.style.display = 'block'; btnNew.style.display = 'block'; btnNext.style.display = 'none';
+                resetPlayerDrawing();
+                
+                const level = parseInt(diffSelect.value);
+                const shapeList = shapesByDifficulty[level];
+                const randomShape = shapeList[Math.floor(Math.random() * shapeList.length)];
+                
+                const availableTransforms = transformsByDifficulty[level];
+                const randomTransform = allTransforms[availableTransforms[Math.floor(Math.random() * availableTransforms.length)]];
+                
+                problemText.innerText = randomTransform.name;
+                
+                drawGrid(baseCtx); 
+                drawShape(baseCtx, randomShape, "rgba(116, 185, 255, 0.8)");
+                
+                targetShapeVertices = randomShape.map(v => randomTransform.transformFunc(v));
+            }
+
+            function handleInput(e) {
+                if (isPlayerPathClosed) return; 
+                e.preventDefault(); 
+
+                const rect = playerCanvas.getBoundingClientRect();
+                const clientX = e.touches && e.touches.length > 0 ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches && e.touches.length > 0 ? e.touches[0].clientY : e.clientY;
+
+                const scaleX = playerCanvas.width / rect.width; const scaleY = playerCanvas.height / rect.height;
+                const x = (clientX - rect.left) * scaleX; const y = (clientY - rect.top) * scaleY;
+
+                // ⭐️ 터치 위치도 여백(padding)만큼 빼주고 계산합니다.
+                const gridX = Math.round((x - padding) / cellSize); 
+                const gridY = Math.round((y - padding) / cellSize);
+                
+                if (gridX < 0 || gridX > gridSize || gridY < 0 || gridY > gridSize) return;
+
+                if (playerVertices.length > 2 && playerVertices[0].x === gridX && playerVertices[0].y === gridY) {
+                    isPlayerPathClosed = true;
+                } else {
+                    playerVertices.push({ x: gridX, y: gridY });
+                }
+                renderPlayerCanvas();
+            }
+
+            playerCanvas.addEventListener('mousedown', handleInput);
+            playerCanvas.addEventListener('touchstart', handleInput, { passive: false });
+
+            function checkAnswer() {
+                if (!isPlayerPathClosed) {
+                    showModal("앗, 잠깐만요! 🎈", "선을 끝까지 이어주세요!<br>처음에 찍었던 <b>빨간 점</b>을 다시 누르면 완성됩니다!", false);
+                    return;
+                }
+
+                let targetPath = new Path2D();
+                // ⭐️ 정답 체크 영역(Path)도 여백을 반영하여 생성
+                targetPath.moveTo(padding + targetShapeVertices[0].x * cellSize, padding + targetShapeVertices[0].y * cellSize);
+                for(let i=1; i<targetShapeVertices.length; i++) {
+                    targetPath.lineTo(padding + targetShapeVertices[i].x * cellSize, padding + targetShapeVertices[i].y * cellSize);
+                }
+                targetPath.closePath();
+
+                let playerPath = new Path2D();
+                playerPath.moveTo(padding + playerVertices[0].x * cellSize, padding + playerVertices[0].y * cellSize);
+                for(let i=1; i<playerVertices.length; i++) {
+                    playerPath.lineTo(padding + playerVertices[i].x * cellSize, padding + playerVertices[i].y * cellSize);
+                }
+                playerPath.closePath();
+
+                let isCorrect = true;
+                for(let x=0; x<=280; x+=5) { 
+                    for(let y=0; y<=280; y+=5) {
+                        if (baseCtx.isPointInPath(targetPath, x, y) !== playerCtx.isPointInPath(playerPath, x, y)) {
+                            isCorrect = false; break;
+                        }
+                    }
+                    if (!isCorrect) break;
+                }
+
+                if (isCorrect) {
+                    const level = parseInt(diffSelect.value);
+                    const earnedScore = level * 10;
+                    currentScore += earnedScore;
+                    scoreVal.innerText = currentScore;
+                    
+                    btnCheck.style.display = 'none'; btnNew.style.display = 'none'; btnNext.style.display = 'block';
+                    
+                    showModal("정답이에요! 🎉", `우와~ 완벽해요! 참 잘했어요!<br><br><span style="color:#ee5253; font-weight:bold; font-size:20px;">+${earnedScore}점 획득!</span>`, false);
+                } else {
+                    showModal("아까워요! 🤔", "모양이나 위치가 조금 다른 것 같아요!<br>'지우기' 버튼을 누르고 다시 해볼까요?", false);
+                }
+            }
+
+            btnReset.addEventListener('click', resetPlayerDrawing);
+            btnCheck.addEventListener('click', checkAnswer);
+            btnNext.addEventListener('click', generateProblem);
+            btnNew.addEventListener('click', function() {
+                showModal("패스할까요? 🚀", "이 문제는 너무 어렵나요?<br>다음 문제로 넘어갈까요?", true, function() {
+                    generateProblem();
+                });
+            });
+            diffSelect.addEventListener('change', generateProblem);
+
+            generateProblem();
+        })();
+    </script>
+</body>
+</html>
