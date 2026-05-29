@@ -1,6 +1,6 @@
 {
-  "name": "요리조리 모양 맞추기",
-  "short_name": "도형 퍼즐",
+  "name": "송아빠의 도형 퍼즐",
+  "short_name": "송아빠의 도형 퍼즐",
   "description": "도형을 따라 그리며 즐기는 모양 맞추기 퍼즐 게임",
   "start_url": "/dads-shape-play/",
   "scope": "/dads-shape-play/",
