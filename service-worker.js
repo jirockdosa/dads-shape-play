@@ -1,5 +1,5 @@
 // 🎮 도형 퍼즐 Service Worker
-const CACHE_NAME = 'shape-play-v1';
+const CACHE_NAME = 'shape-play-v2';
 
 const ASSETS_TO_CACHE = [
   '/dads-shape-play/',
